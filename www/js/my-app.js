@@ -27,10 +27,6 @@ var app = new Framework7({
             url: "main.html",
         },
         {
-            path: "/login/",
-            url: "login.html",
-        },
-        {
             path: "/register/",
             url: "registro.html",
         },
@@ -44,11 +40,9 @@ var router = mainView.router;
 // Handle Cordova Device Ready Event
 $$(document).on("deviceready", function () {
     getUsuario();
-    if (usuarioEstaLogeado != true) {
-        router.navigate("/login/");
-    } else {
-        router.navigate("/main/");
-    }
+    //if (usuarioEstaLogeado == true) {
+    //    router.navigate("/main/");
+    //}
 });
 
 // Option 1. Using one 'page:init' handler for all pages
@@ -56,8 +50,7 @@ $$(document).on("page:init", function (e) {
     // Do something here when page loaded and initialized
 });
 
-$$(document).on("page:init", '.page[data-name="index"]', function (e) {});
-$$(document).on("page:init", '.page[data-name="login"]', function (e) {
+$$(document).on("page:init", '.page[data-name="index"]', function (e) {
     $$("#btnLogin").on("click", function () {
         var email = $$("#emailLogin").val();
         var password = $$("#passwordLogin").val();
@@ -101,6 +94,10 @@ $$(document).on("page:init", '.page[data-name="registro"]', function (e) {
         }
     });
 });
+$$(document).on("page:init", '.page[data-name="main"]', function (e) {
+    //Acceder a la lista de contactos
+
+});
 
 $$(document).on("page:init", '.page[data-name="about"]', function (e) {});
 
@@ -119,12 +116,9 @@ function setUsuario(nombre) {
 }
 
 function crearUsuario(email, nombre) {
-    var data = {
-        nombre: nombre,
-    };
     db.collection("USUARIOS")
         .doc(email)
-        .set({ nombre: nombre })
+        .set({ nombre: nombre,CONTACTOS:[] })
         .catch(function (error) {
             app.dialog.alert("Error al crear el usuario");
             console.log(error);

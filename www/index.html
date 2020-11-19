@@ -41,31 +41,66 @@
             <!-- Your main view, should have "view-main" class -->
             <div class="view view-main">
                 <!-- Initial Page, "data-name" contains page name -->
-                <div data-name="index" class="page">
-                    <!-- Top Navbar -->
-                    <div class="navbar">
-                        <div class="navbar-bg"></div>
-                        <div class="navbar-inner">
-                            <div class="left">
-                                <i class="icon icon-back"></i>
-                            </div>
-                            <div class="title">Page Title</div>
-                            <div class="right">
-                                <i class="icon icon-forward"></i>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Toolbar -->
-                    <div class="toolbar toolbar-bottom">
-                        <div class="toolbar-inner">
-                            <!-- Toolbar links -->
-                            <a href="#" class="link">Link 1</a>
-                            <a href="#" class="link">Link 2</a>
-                        </div>
-                    </div>
+                <div data-name="index" class="page login-screen-page">
                     <!-- Scrollable page content -->
-                    <div class="page-content"></div>
+                    <div class="page-content">
+                        <div class="login-screen-title">Ingresar sesion</div>
+                        <form>
+                            <div class="list">
+                                <ul>
+                                    <li class="item-content item-input">
+                                        <div class="item-inner">
+                                            <div class="item-title item-label">
+                                                Email
+                                            </div>
+                                            <div class="item-input">
+                                                <input
+                                                    id="emailLogin"
+                                                    type="email"
+                                                    name="email"
+                                                    placeholder="Dirección de email"
+                                                />
+                                            </div>
+                                        </div>
+                                    </li>
+                                    <li class="item-content item-input">
+                                        <div class="item-inner">
+                                            <div class="item-title item-label">
+                                                Constraseña
+                                            </div>
+                                            <div class="item-input">
+                                                <input
+                                                    id="passwordLogin"
+                                                    type="password"
+                                                    name="password"
+                                                    placeholder="Ingrese su contraseña"
+                                                />
+                                            </div>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="list">
+                                <ul>
+                                    <li>
+                                        <a
+                                            id="btnLogin"
+                                            href="#"
+                                            class="list-button"
+                                            >Ingresar</a
+                                        >
+                                    </li>
+                                </ul>
+                                <div class="block-footer">
+                                    <p>
+                                        Si no tienes una cuenta puedes crearla
+                                        haciendo click
+                                        <a href="/register/" class="">aqui</a>
+                                    </p>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>
