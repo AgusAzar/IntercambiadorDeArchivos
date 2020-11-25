@@ -1,6 +1,7 @@
 // If we need to use custom DOM library, let's save it to $$ variable:
-var usuarioEstaLogeado, usuario;
+var usuarioEstaLogeado, userMail, userName;
 var db = firebase.firestore();
+var storage = firebase.storage();
 var data = {
     nombre: "usuario 1",
     DISPOSITIVOS: ["Mi pc"],
@@ -30,6 +31,11 @@ var app = new Framework7({
             path: "/register/",
             url: "registro.html",
         },
+        {
+            path: "/addContacto/",
+            url: "addContacto.html",
+        },
+        { path: "/contacto/:userId", url: "contacto.html" },
     ],
     // ... other parameters
 });
@@ -46,11 +52,11 @@ $$(document).on("deviceready", function () {
 });
 
 // Option 1. Using one 'page:init' handler for all pages
-$$(document).on("page:init", function (e) {
+$$(document).on("page:init", function () {
     // Do something here when page loaded and initialized
 });
 
-$$(document).on("page:init", '.page[data-name="index"]', function (e) {
+$$(document).on("page:init", '.page[data-name="index"]', function () {
     $$("#btnLogin").on("click", function () {
         var email = $$("#emailLogin").val();
         var password = $$("#passwordLogin").val();
@@ -62,14 +68,14 @@ $$(document).on("page:init", '.page[data-name="index"]', function (e) {
                 router.navigate("/main/");
             })
             .catch(function (error) {
-                var errorCode = error.code;
+                //var errorCode = error.code;
                 var errorMessage = error.message;
                 app.dialog.alert(errorMessage, "Error");
             });
     });
 });
 
-$$(document).on("page:init", '.page[data-name="registro"]', function (e) {
+$$(document).on("page:init", '.page[data-name="registro"]', function () {
     $$("#btnRegistro").on("click", function () {
         var email = $$("#emailRegistro").val();
         var nombre = $$("#nombreRegistro").val();
@@ -85,7 +91,7 @@ $$(document).on("page:init", '.page[data-name="registro"]', function (e) {
                     router.navigate("/main/");
                 })
                 .catch(function (error) {
-                    var errorCode = error.code;
+                    //var errorCode = error.code;
                     var errorMessage = error.message;
                     console.log(errorMessage);
                 });
@@ -94,33 +100,108 @@ $$(document).on("page:init", '.page[data-name="registro"]', function (e) {
         }
     });
 });
-$$(document).on("page:init", '.page[data-name="main"]', function (e) {
-    //Acceder a la lista de contactos
-
+$$(document).on("page:init", '.page[data-name="main"]', function () {
+    getContactos();
 });
 
-$$(document).on("page:init", '.page[data-name="about"]', function (e) {});
+$$(document).on("page:init", '.page[data-name="addContacto"]', function () {
+    $$("#btnAddContacto").on("click", function () {
+        var contactMail = $$("#contactMail").val();
+        console.log(contactMail);
+        db.collection("USUARIOS")
+            .doc(contactMail)
+            .get()
+            .then(function (doc) {
+                console.log(doc.data());
+                if (doc.exists) {
+                    db.collection("USUARIOS")
+                        .doc(contactMail)
+                        .collection("CONTACTOS")
+                        .doc(userMail)
+                        .set({ nombre: userName });
+                    db.collection("USUARIOS")
+                        .doc(userMail)
+                        .collection("CONTACTOS")
+                        .doc(doc.id)
+                        .set({ nombre: doc.data().nombre });
+                    app.dialog.alert(
+                        "El usuario se ha agregado de forma correcta"
+                    );
+                    router.refreshPage();
+                } else {
+                    app.dialog.alert("El usuario no existe");
+                }
+            })
+            .catch(function () {});
+    });
+});
+$$(document).on("page:init", '.page[data-name="contacto"]', function () {
+    var contactId = router.currentRoute.params.userId;
+    console.log(contactId);
+    db.collection("USUARIOS")
+        .doc(contactId)
+        .get()
+        .then(function (doc) {
+            contactName = doc.data().nombre;
+            $$(".contactId").text(contactId);
+            $$(".contactName").text(contactName);
+        });
+    $$("#btnTransaccion").on("click",function(){
+        var archivos = $$("#archivos").val()
+        console.log(archivos)
+        var file = archivos;
+        var storageRef = storage.ref('/prueba')
+        storageRef.put(file);
+    })
+});
+//$$(document).on("page:init", '.page[data-name="about"]', function (e) {});
 
 function getUsuario() {
-    usuario = localStorage.getItem("usuario");
-    if (usuario != null) {
+    userMail = localStorage.getItem("userMail");
+    userName = localStorage.getItem("userName");
+    if (userMail != null) {
         usuarioEstaLogeado = true;
     } else {
         usuarioEstaLogeado = false;
     }
 }
-function setUsuario(nombre) {
-    localStorage.setItem("usuario", nombre);
-    usuario = nombre;
+function setUsuario(mail) {
+    userMail = mail;
+    db.collection("USUARIOS")
+        .doc(userMail)
+        .get()
+        .then(function (doc) {
+            userName = doc.data().nombre;
+        });
+    localStorage.setItem("userMail", userMail);
+    localStorage.setItem("userName", userName);
     usuarioEstaLogeado = true;
 }
 
 function crearUsuario(email, nombre) {
     db.collection("USUARIOS")
         .doc(email)
-        .set({ nombre: nombre,CONTACTOS:[] })
+        .set({ nombre: nombre, CONTACTOS: {} })
         .catch(function (error) {
             app.dialog.alert("Error al crear el usuario");
             console.log(error);
+        });
+}
+function getContactos() {
+    db.collection("USUARIOS")
+        .doc(userMail)
+        .collection("CONTACTOS")
+        .get()
+        .then(function (querySnapshot) {
+            querySnapshot.forEach(function (doc) {
+                console.log(doc.id + " => " + doc.data());
+                $$("#listaDeContacto").append(
+                    '<li><a href="/contacto/' +
+                        doc.id +
+                        '">' +
+                        doc.data().nombre +
+                        "</a></li>"
+                );
+            });
         });
 }
