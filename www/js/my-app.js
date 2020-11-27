@@ -27,10 +27,7 @@ var app = new Framework7({
             path: "/main/",
             url: "main.html",
         },
-        {
-            path: "/register/",
-            url: "registro.html",
-        },
+        { path: "/register/", url: "registro.html" },
         {
             path: "/addContacto/",
             url: "addContacto.html",
@@ -146,13 +143,23 @@ $$(document).on("page:init", '.page[data-name="contacto"]', function () {
             $$(".contactId").text(contactId);
             $$(".contactName").text(contactName);
         });
-    $$("#btnTransaccion").on("click",function(){
-        var archivos = $$("#archivos").val()
-        console.log(archivos)
-        var file = archivos;
-        var storageRef = storage.ref('/prueba')
-        storageRef.put(file);
-    })
+    $$("#archivos").on("change", function () {
+        files = document.getElementById("archivos").files;
+        mostrarArchivos(files);
+    });
+    $$("#btnTransaccion").on("click", function () {
+        var archivos = document.getElementById("archivos").files;
+        db.collection('TRANSACCIONES').add({
+            emisor: userMail,
+            receptor: contactId,
+            cantidad: archivos.length
+        }).then(function(docRef){
+            var storageRef = storage.ref(docRef.id);
+            Array.from(archivos).forEach((archivo) => {
+                var filerRef = storageRef.child(archivo.name);
+                filerRef.put(archivo);
+        })
+    });
 });
 //$$(document).on("page:init", '.page[data-name="about"]', function (e) {});
 
@@ -204,4 +211,9 @@ function getContactos() {
                 );
             });
         });
+}
+function mostrarArchivos(files) {
+    Array.from(files).forEach((archivo) => {
+        $$("#fileList").append("<li>" + archivo.name + "</li>");
+    });
 }
