@@ -101,6 +101,7 @@ $$(document).on("page:init", '.page[data-name="registro"]', function () {
                     //var errorCode = error.code;
                     var errorMessage = error.message;
                     console.log(errorMessage);
+                app.dialog.alert(errorMessage, "Error");
                 });
         } else {
             app.dialog.alert("Error", "Las contraseñas deben coincidir");
@@ -135,7 +136,7 @@ $$(document).on("page:init", '.page[data-name="addContacto"]', function () {
                     app.dialog.alert(
                         "El usuario se ha agregado de forma correcta"
                     );
-                    router.refreshPage();
+                    router.back();
                 } else {
                     app.dialog.alert("El usuario no existe");
                 }
@@ -159,6 +160,7 @@ $$(document).on("page:init", '.page[data-name="contacto"]', function () {
         mostrarArchivos(files);
     });
     $$("#btnTransaccion").on("click", function () {
+        app.dialog.preloader("Subiendo archivos");
         var archivos = document.getElementById("archivos").files;
         db.collection("TRANSACCIONES")
             .add({
@@ -168,9 +170,18 @@ $$(document).on("page:init", '.page[data-name="contacto"]', function () {
             })
             .then(function (docRef) {
                 var storageRef = storage.ref(docRef.id);
+                var cantidadSubidos = 0;
                 Array.from(archivos).forEach((archivo) => {
                     var filerRef = storageRef.child(archivo.name);
-                    filerRef.put(archivo);
+                    filerRef.put(archivo).then(function () {
+                        cantidadSubidos++;
+                        if (cantidadSubidos == archivos.length) {
+                            app.dialog.close();
+                            router.back();
+                        } else {
+                            console.log(cantidadSubidos);
+                        }
+                    });
                 });
             });
     });
@@ -230,18 +241,19 @@ function crearUsuario(email, nombre) {
         .set({ nombre: nombre, CONTACTOS: {} })
         .catch(function (error) {
             app.dialog.alert("Error al crear el usuario");
-            console.log(error);
+                app.dialog.alert(error, "Error");
         });
 }
 function getContactos() {
     db.collection("USUARIOS")
         .doc(userMail)
         .collection("CONTACTOS")
-        .get()
-        .then(function (querySnapshot) {
-            querySnapshot.forEach(function (doc) {
+        .onSnapshot(function (querySnapshot) {
+            querySnapshot.docChanges().forEach(function (change) {
+                doc = change.doc;
+                console.log(doc);
                 console.log(doc.id + " => " + doc.data());
-                $$("#listaDeContacto").append(
+                $$("#listaDeContacto").prepend(
                     '<li><a class="contacto" href="/contacto/' +
                         doc.id +
                         '">' +
@@ -258,7 +270,6 @@ function mostrarArchivos(files) {
 }
 function downloadFile(name, url) {
     console.log(url);
-    app.dialog.alert(url, "url");
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url);
     xhr.responseType = "blob";
@@ -273,38 +284,48 @@ function downloadFile(name, url) {
 function saveFile(name, blob) {
     window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, function (fs) {
         console.log("file system open: " + fs.name);
-        window.resolveLocalFileSystemURL( cordova.file.externalRootDirectory, function (dirEntry) {
+        window.resolveLocalFileSystemURL(
+            cordova.file.externalRootDirectory,
+            function (dirEntry) {
                 console.log("root ", dirEntry);
-                dirEntry.getDirectory( "Download", { create: true, exclusive: false }, function (dirEntry) {
+                dirEntry.getDirectory(
+                    "Download",
+                    { create: true, exclusive: false },
+                    function (dirEntry) {
                         console.log("downloads ", dirEntry);
-                        dirEntry.getFile( name, { create: true, exclusive: false }, function (fileEntry) {
-                                app.dialog.alert("llamando", "Create Writer");
+                        dirEntry.getFile(
+                            name,
+                            { create: true, exclusive: false },
+                            function (fileEntry) {
                                 writeFile(fileEntry, blob);
                             },
                             function (err) {
+                                app.dialog.alert('Error al descargar el archivo')
                                 console.log("failed to create file");
                                 console.log(err);
                             }
                         );
                     }
                 );
-            }
+            },function(){app.dialog.alert('Eroor al descargar el archivo')}
         );
-    });
+    },function(){app.dialog.alert('Eroor al descargar el archivo')});
 }
 function writeFile(fileEntry, dataObj) {
-    app.dialog.alert("inicio", "Create Writer");
     fileEntry.createWriter(function (fileWriter) {
-        app.dialog.alert("escribiendo", "Create Writer");
         fileWriter.onwriteend = function () {
             console.log("Successful file write...");
+            app.dialog.close();
         };
 
         fileWriter.onerror = function (e) {
             console.log("Failed file write: " + e.toString());
+            app.dialog.close();
+            app.dialog.alert('Error al descargar el archivo')
         };
 
         fileWriter.write(dataObj);
+        app.dialog.preloader("Descargando");
     });
 }
 async function getTransacciones() {
@@ -319,9 +340,6 @@ async function getTransacciones() {
                 if (a.doc.data().timeStamp < b.doc.data().timeStamp) return -1;
                 return 0;
             });
-            var cantidad = docs.length;
-            var i = 0;
-            var j = 0;
             console.log(docs);
             docs.forEach(async function (change) {
                 doc = change.doc;
@@ -333,28 +351,25 @@ async function getTransacciones() {
                 );
                 var transaccionId = doc.id;
                 if (doc.data().usuarios[0] == userMail) {
+                    $$("#lista-notificaciones").prepend(
+                        "<li><a id='" +
+                            transaccionId +
+                            "' class='panel-close' href='/transaccion/" +
+                            transaccionId +
+                            "'></li>"
+                    );
                     var id = doc.data().usuarios[1];
                     var ref = db.collection("USUARIOS").doc(id);
                     var doc = await ref.get();
                     var contactName = doc.data().nombre;
-                    $$("#lista-notificaciones").prepend(
-                        "<li><a class='panel-close' href='/transaccion/" +
-                            transaccionId +
-                            "'>De ti a " +
-                            contactName +
-                            "</a></li>"
-                    );
+                    $$("#" + transaccionId).text("De ti a " + contactName);
                 } else {
                     var id = doc.data().usuarios[0];
                     var ref = db.collection("USUARIOS").doc(id);
                     var doc = await ref.get();
                     var contactName = doc.data().nombre;
-                    $$("#lista-notificaciones").prepend(
-                        "<li><a class='panel-close' href='/transaccion/" +
-                            transaccionId +
-                            "'>De " +
-                            contactName +
-                            " a ti</a></li>"
+                    $$("#" + transaccionId).text(
+                        "'>De " + contactName + " a ti"
                     );
                 }
             });
