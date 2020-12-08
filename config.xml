@@ -30,8 +30,10 @@
       <preference name="StatusBarOverlaysWebView" value="false" />
       <preference name="phonegap-version" value="cli-7.1.0" />
       <preference name="AndroidPersistentFileLocation" value="Compatibility" />
-      <preference name="android-minSdkVersion" value="14" />
-      <preference name="android-targetSdkVersion" value="29" />
+      <preference name="iosExtraFilesystems" value="library,library-nosync,documents,documents-nosync,cache,bundle,root" />
+      <preference name="AndroidExtraFilesystems" value="files,files-external,documents,sdcard,cache,cache-external,assets,root" />
+      <preference name="android-minSdkVersion" value="22" />
+      <preference name="android-targetSdkVersion" value="28" />
       <preference name="SplashMaintainAspectRatio" value="true" />
       <preferance name="android-usesCleartextTraffic" value="true" />
       <preference name="android.permission.INTERNET" value="none" />

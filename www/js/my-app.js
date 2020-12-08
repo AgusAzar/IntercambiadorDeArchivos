@@ -177,10 +177,10 @@ $$(document).on("page:init", '.page[data-name="contacto"]', function () {
 });
 $$(document).on("page:init", '.page[data-name="transaccion"]', function () {
     var transaccionId = router.currentRoute.params.transaccionId;
-    $$(".fileId").on("click", function () {
+    /*$$(".fileId").on("click", function () {
         var url = $$(this).attr("id");
         downloadFile(url);
-    });
+    });*/
     console.log(transaccionId);
     var ref = storage.ref(transaccionId);
     ref.listAll().then(function (res) {
@@ -193,7 +193,9 @@ $$(document).on("page:init", '.page[data-name="transaccion"]', function () {
                         itemRef.name +
                         `</div> <a id="` +
                         url +
-                        `" href="#" class="fileId f7-icons size-50">arrow_down_circle</a> </div> </div></li>`
+                        `" href="#" onclick="downloadFile('` +
+                        itemRef.name +
+                        `',this.id)" class="fileId f7-icons size-50">arrow_down_circle</a> </div> </div></li>`
                 );
             });
         });
@@ -222,7 +224,6 @@ function setUsuario(mail) {
     localStorage.setItem("userName", userName);
     usuarioEstaLogeado = true;
 }
-
 function crearUsuario(email, nombre) {
     db.collection("USUARIOS")
         .doc(email)
@@ -255,56 +256,106 @@ function mostrarArchivos(files) {
         $$("#fileList").append("<li>" + archivo.name + "</li>");
     });
 }
-function downloadFile(url) {
+function downloadFile(name, url) {
     console.log(url);
+    app.dialog.alert(url, "url");
     var xhr = new XMLHttpRequest();
-    xhr.responseType = "blob";
-    xhr.onload = function (event) {
-        var blob = xhr.response;
-    };
     xhr.open("GET", url);
+    xhr.responseType = "blob";
+    xhr.onload = function () {
+        if (this.status == 200) {
+            var blob = xhr.response;
+            saveFile(name, blob);
+        }
+    };
     xhr.send();
 }
-function getTransacciones() {
+function saveFile(name, blob) {
+    window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, function (fs) {
+        console.log("file system open: " + fs.name);
+        window.resolveLocalFileSystemURL( cordova.file.externalRootDirectory, function (dirEntry) {
+                console.log("root ", dirEntry);
+                dirEntry.getDirectory( "Download", { create: true, exclusive: false }, function (dirEntry) {
+                        console.log("downloads ", dirEntry);
+                        dirEntry.getFile( name, { create: true, exclusive: false }, function (fileEntry) {
+                                app.dialog.alert("llamando", "Create Writer");
+                                writeFile(fileEntry, blob);
+                            },
+                            function (err) {
+                                console.log("failed to create file");
+                                console.log(err);
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    });
+}
+function writeFile(fileEntry, dataObj) {
+    app.dialog.alert("inicio", "Create Writer");
+    fileEntry.createWriter(function (fileWriter) {
+        app.dialog.alert("escribiendo", "Create Writer");
+        fileWriter.onwriteend = function () {
+            console.log("Successful file write...");
+        };
+
+        fileWriter.onerror = function (e) {
+            console.log("Failed file write: " + e.toString());
+        };
+
+        fileWriter.write(dataObj);
+    });
+}
+async function getTransacciones() {
     db.collection("TRANSACCIONES")
-        .orderBy("timeStamp", "asc")
         .where("usuarios", "array-contains", userMail)
         .limit(50)
-        .onSnapshot(function (querySnapshot) {
+        .onSnapshot(async function (querySnapshot) {
             lastTimeStamp = Date.now();
-            querySnapshot.docChanges().forEach(function (change) {
+            var docs = querySnapshot.docChanges();
+            docs.sort(function (a, b) {
+                if (a.doc.data().timeStamp > b.doc.data().timeStamp) return 1;
+                if (a.doc.data().timeStamp < b.doc.data().timeStamp) return -1;
+                return 0;
+            });
+            var cantidad = docs.length;
+            var i = 0;
+            var j = 0;
+            console.log(docs);
+            docs.forEach(async function (change) {
                 doc = change.doc;
-                console.log(doc.id + " => " + doc.data());
-                console.log(doc.data().usuarios);
+                console.log(
+                    "leyendo datos de:" +
+                        doc.data().usuarios[0] +
+                        " a " +
+                        doc.data().usuarios[1]
+                );
                 var transaccionId = doc.id;
                 if (doc.data().usuarios[0] == userMail) {
-                    db.collection("USUARIOS")
-                        .doc(doc.data().usuarios[1])
-                        .get()
-                        .then(function (doc) {
-                            var contactName = doc.data().nombre;
-                            $$("#lista-notificaciones").prepend(
-                                "<li><a class='panel-close' href='/transaccion/" +
-                                    transaccionId +
-                                    "'>de ti a " +
-                                    contactName +
-                                    "</a></li>"
-                            );
-                        });
+                    var id = doc.data().usuarios[1];
+                    var ref = db.collection("USUARIOS").doc(id);
+                    var doc = await ref.get();
+                    var contactName = doc.data().nombre;
+                    $$("#lista-notificaciones").prepend(
+                        "<li><a class='panel-close' href='/transaccion/" +
+                            transaccionId +
+                            "'>De ti a " +
+                            contactName +
+                            "</a></li>"
+                    );
                 } else {
-                    db.collection("USUARIOS")
-                        .doc(doc.data().usuarios[0])
-                        .get()
-                        .then(function (doc) {
-                            var contactName = doc.data().nombre;
-                            $$("#lista-notificaciones").prepend(
-                                "<li><a class='panel-close' href='/transaccion/:" +
-                                    transaccionId +
-                                    "'de " +
-                                    contactName +
-                                    " a ti</a></li>"
-                            );
-                        });
+                    var id = doc.data().usuarios[0];
+                    var ref = db.collection("USUARIOS").doc(id);
+                    var doc = await ref.get();
+                    var contactName = doc.data().nombre;
+                    $$("#lista-notificaciones").prepend(
+                        "<li><a class='panel-close' href='/transaccion/" +
+                            transaccionId +
+                            "'>De " +
+                            contactName +
+                            " a ti</a></li>"
+                    );
                 }
             });
         });
