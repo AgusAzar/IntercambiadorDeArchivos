@@ -350,14 +350,14 @@ async function getTransacciones() {
                         doc.data().usuarios[1]
                 );
                 var transaccionId = doc.id;
+                $$("#lista-notificaciones").prepend(
+                    "<li><a id='" +
+                        transaccionId +
+                        "' class='panel-close' href='/transaccion/" +
+                        transaccionId +
+                        "'></li>"
+                );
                 if (doc.data().usuarios[0] == userMail) {
-                    $$("#lista-notificaciones").prepend(
-                        "<li><a id='" +
-                            transaccionId +
-                            "' class='panel-close' href='/transaccion/" +
-                            transaccionId +
-                            "'></li>"
-                    );
                     var id = doc.data().usuarios[1];
                     var ref = db.collection("USUARIOS").doc(id);
                     var doc = await ref.get();
@@ -369,7 +369,7 @@ async function getTransacciones() {
                     var doc = await ref.get();
                     var contactName = doc.data().nombre;
                     $$("#" + transaccionId).text(
-                        "'>De " + contactName + " a ti"
+                        "De " + contactName + " a ti"
                     );
                 }
             });
