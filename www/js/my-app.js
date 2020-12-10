@@ -1,6 +1,7 @@
 // If we need to use custom DOM library, let's save it to $$ variable:
 var usuarioEstaLogeado, userMail, userName;
 var db = firebase.firestore();
+var files = [];
 var storage = firebase.storage();
 var lastTimeStamp = 0;
 var data = {
@@ -36,7 +37,7 @@ var app = new Framework7({
             url: "addContacto.html",
         },
         {
-            path: "/contacto/:userId",
+            path: "/contacto/:userId/:userName",
             url: "contacto.html",
         },
         {
@@ -53,9 +54,10 @@ var router = mainView.router;
 // Handle Cordova Device Ready Event
 $$(document).on("deviceready", function () {
     getUsuario();
-    //if (usuarioEstaLogeado == true) {
-    //    router.navigate("/main/");
-    //}
+    /*if(usuarioEstaLogeado){
+        router.navigate('/main/')
+    }
+    */
 });
 
 // Option 1. Using one 'page:init' handler for all pages
@@ -64,21 +66,19 @@ $$(document).on("page:init", function () {
 });
 
 $$(document).on("page:init", '.page[data-name="index"]', function () {
-    $$("#btnLogin").on("click", function () {
+    $$("#btnLogin").on("click", async function () {
         var email = $$("#emailLogin").val();
         var password = $$("#passwordLogin").val();
-        firebase
-            .auth()
-            .signInWithEmailAndPassword(email, password)
-            .then(function () {
-                setUsuario(email);
-                router.navigate("/main/");
-            })
-            .catch(function (error) {
-                //var errorCode = error.code;
-                var errorMessage = error.message;
-                app.dialog.alert(errorMessage, "Error");
-            });
+        var loged = await login(email,password);
+        if(loged == 'loged'){
+            console.log(loged)
+            router.navigate("/main/");
+        }
+        else{
+            var errorMessage = 'error';
+            app.dialog.alert(errorMessage, "Error");
+        }
+        
     });
 });
 
@@ -94,14 +94,14 @@ $$(document).on("page:init", '.page[data-name="registro"]', function () {
                 .createUserWithEmailAndPassword(email, password)
                 .then(function () {
                     crearUsuario(email, nombre);
-                    setUsuario(email);
+                    setUsuario(email,nombre);
                     router.navigate("/main/");
                 })
                 .catch(function (error) {
                     //var errorCode = error.code;
                     var errorMessage = error.message;
                     console.log(errorMessage);
-                app.dialog.alert(errorMessage, "Error");
+                    app.dialog.alert(errorMessage, "Error");
                 });
         } else {
             app.dialog.alert("Error", "Las contraseñas deben coincidir");
@@ -111,53 +111,48 @@ $$(document).on("page:init", '.page[data-name="registro"]', function () {
 $$(document).on("page:init", '.page[data-name="main"]', function () {
     getContactos();
     getTransacciones();
+    $$('#logout').on('click',function(){
+        logout();
+        router.back();
+    })
 });
 
 $$(document).on("page:init", '.page[data-name="addContacto"]', function () {
     $$("#btnAddContacto").on("click", function () {
         var contactMail = $$("#contactMail").val();
         console.log(contactMail);
-        db.collection("USUARIOS")
-            .doc(contactMail)
-            .get()
-            .then(function (doc) {
-                console.log(doc.data());
-                if (doc.exists) {
-                    db.collection("USUARIOS")
-                        .doc(contactMail)
-                        .collection("CONTACTOS")
-                        .doc(userMail)
-                        .set({ nombre: userName });
-                    db.collection("USUARIOS")
-                        .doc(userMail)
-                        .collection("CONTACTOS")
-                        .doc(doc.id)
-                        .set({ nombre: doc.data().nombre });
-                    app.dialog.alert(
-                        "El usuario se ha agregado de forma correcta"
-                    );
-                    router.back();
-                } else {
-                    app.dialog.alert("El usuario no existe");
-                }
-            })
-            .catch(function () {});
+        var doc = getUserData(contactMail)
+        if (doc.exists) {
+            db.collection("USUARIOS")
+                .doc(contactMail)
+                .collection("CONTACTOS")
+                .doc(userMail)
+                .set({ nombre: userName });
+            db.collection("USUARIOS")
+                .doc(userMail)
+                .collection("CONTACTOS")
+                .doc(doc.id)
+                .set({ nombre: doc.data().nombre });
+            app.dialog.alert(
+                "El usuario se ha agregado de forma correcta"
+            );
+            router.back();
+        } else {
+            app.dialog.alert("El usuario no existe");
+        }
     });
 });
 $$(document).on("page:init", '.page[data-name="contacto"]', function () {
     var contactId = router.currentRoute.params.userId;
+    var contactName = router.currentRoute.params.userName;
     console.log(contactId);
-    db.collection("USUARIOS")
-        .doc(contactId)
-        .get()
-        .then(function (doc) {
-            contactName = doc.data().nombre;
-            $$(".contactId").text(contactId);
-            $$(".contactName").text(contactName);
-        });
+    $$(".contactId").text(contactId);
+    $$(".contactName").text(contactName);
     $$("#archivos").on("change", function () {
-        files = document.getElementById("archivos").files;
-        mostrarArchivos(files);
+        Array.from(document.getElementById("archivos").files).forEach((archivo)=>{
+            files.push(archivo);
+        })
+        mostrarArchivos();
     });
     $$("#btnTransaccion").on("click", function () {
         app.dialog.preloader("Subiendo archivos");
@@ -171,7 +166,7 @@ $$(document).on("page:init", '.page[data-name="contacto"]', function () {
             .then(function (docRef) {
                 var storageRef = storage.ref(docRef.id);
                 var cantidadSubidos = 0;
-                Array.from(archivos).forEach((archivo) => {
+                files.forEach((archivo) => {
                     var filerRef = storageRef.child(archivo.name);
                     filerRef.put(archivo).then(function () {
                         cantidadSubidos++;
@@ -213,27 +208,49 @@ $$(document).on("page:init", '.page[data-name="transaccion"]', function () {
     });
 });
 //$$(document).on("page:init", '.page[data-name="about"]', function (e) {});
+function login(email,password){
+    return new Promise((resolve)=>{
+        firebase
+            .auth()
+            .signInWithEmailAndPassword(email, password)
+            .then(async function () {
+                console.log('login ok')
+                var doc = await getUserData(email);
+                setUsuario(email,doc.data().nombre);
+                resolve('loged');
+            })
+            .catch(function (error) {
+                console.log('login bad')
+                resolve(error);
+            });
 
+    })
+}
+function logout(){
+    firebase.auth().signOut();
+    localStorage.removeItem("userMail");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("usuarioEstaLogeado");
+}
 function getUsuario() {
     userMail = localStorage.getItem("userMail");
     userName = localStorage.getItem("userName");
-    if (userMail != null) {
-        usuarioEstaLogeado = true;
-    } else {
-        usuarioEstaLogeado = false;
-    }
+    usuarioEstaLogeado = localStorage.getItem("usuarioEstaLogeado");
 }
-function setUsuario(mail) {
-    userMail = mail;
+function setUsuario(mail,name) {
+    localStorage.setItem("userMail", mail);
+    localStorage.setItem("userName", name);
+    localStorage.setItem("usuarioEstaLogeado", true);
+}
+function getUserData(userid){
+    return new Promise((resolve)=>{
     db.collection("USUARIOS")
-        .doc(userMail)
+        .doc(userid)
         .get()
-        .then(function (doc) {
-            userName = doc.data().nombre;
-        });
-    localStorage.setItem("userMail", userMail);
-    localStorage.setItem("userName", userName);
-    usuarioEstaLogeado = true;
+        .then(function(doc){
+            resolve(doc);
+        })
+    })
 }
 function crearUsuario(email, nombre) {
     db.collection("USUARIOS")
@@ -241,7 +258,7 @@ function crearUsuario(email, nombre) {
         .set({ nombre: nombre, CONTACTOS: {} })
         .catch(function (error) {
             app.dialog.alert("Error al crear el usuario");
-                app.dialog.alert(error, "Error");
+            app.dialog.alert(error, "Error");
         });
 }
 function getContactos() {
@@ -254,21 +271,30 @@ function getContactos() {
                 console.log(doc);
                 console.log(doc.id + " => " + doc.data());
                 $$("#listaDeContacto").prepend(
-                    '<li><a class="contacto" href="/contacto/' +
-                        doc.id +
-                        '">' +
-                        doc.data().nombre +
-                        "</a></li>"
+                    '<li><a class="contacto" href="/contacto/' + doc.id + "/" + doc.data().nombre + '">' + doc.data().nombre + "</a></li>"
                 );
             });
         });
 }
-function mostrarArchivos(files) {
-    Array.from(files).forEach((archivo) => {
-        $$("#fileList").append("<li>" + archivo.name + "</li>");
+function mostrarArchivos() {
+    $$("#fileList").html('');
+    files.forEach((archivo) => {
+        $$("#fileList").append(
+            `<li><div class="item-content"><div class="item-inner"> <div class="item-title">` +
+            archivo.name +
+            `</div> <a id="`+archivo.name+`" onclick="deleteFile('`+archivo.name+`')" class="fileId f7-icons size-50"> xmark_circle </a> </div> </div></li>`
+        );
     });
 }
+function deleteFile(archivo){
+    console.log(archivo)
+    files = files.filter(function(file){
+        return file.name != archivo
+    })
+    mostrarArchivos()
+}
 function downloadFile(name, url) {
+    app.dialog.preloader('Descargando archivo')
     console.log(url);
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url);
@@ -276,40 +302,46 @@ function downloadFile(name, url) {
     xhr.onload = function () {
         if (this.status == 200) {
             var blob = xhr.response;
+            //blob tiene el contenido de la respuesta del servidor
             saveFile(name, blob);
         }
     };
     xhr.send();
 }
 function saveFile(name, blob) {
-    window.requestFileSystem(LocalFileSystem.PERSISTENT, 0, function (fs) {
+    window.requestFileSystem( LocalFileSystem.PERSISTENT, 0, function (fs) {
+        //abrimos el sistema de archivos
         console.log("file system open: " + fs.name);
-        window.resolveLocalFileSystemURL(
-            cordova.file.externalRootDirectory,
-            function (dirEntry) {
-                console.log("root ", dirEntry);
-                dirEntry.getDirectory(
-                    "Download",
-                    { create: true, exclusive: false },
-                    function (dirEntry) {
-                        console.log("downloads ", dirEntry);
-                        dirEntry.getFile(
-                            name,
-                            { create: true, exclusive: false },
-                            function (fileEntry) {
-                                writeFile(fileEntry, blob);
-                            },
-                            function (err) {
-                                app.dialog.alert('Error al descargar el archivo')
-                                console.log("failed to create file");
-                                console.log(err);
-                            }
-                        );
-                    }
+        window.resolveLocalFileSystemURL( cordova.file.externalRootDirectory, function (dirEntry) {
+            //vamos a la raiz del sistema '/'
+            console.log("root ", dirEntry);
+            dirEntry.getDirectory( "Download", { create: true, exclusive: false }, function (dirEntry) {
+                //vamos a la carpeta download
+                console.log("downloads ", dirEntry);
+                dirEntry.getFile( name, { create: true, exclusive: false }, function (fileEntry) {
+                    writeFile(fileEntry, blob);
+                    //llamamos a la function writeFile y le pasamos el archivo a guardar
+                }, function (err) {
+                    app.dialog.alert( "Error al descargar el archivo");
+                    console.log("failed to create file");
+                    console.log(err);
+                }
                 );
-            },function(){app.dialog.alert('Eroor al descargar el archivo')}
+            }, function () {
+                app.dialog.alert( "Error al descargar el archivo");
+                console.log(err);
+            }
+            );
+        }, function () {
+            app.dialog.close();
+            app.dialog.alert("Error al descargar el archivo");
+        }
         );
-    },function(){app.dialog.alert('Eroor al descargar el archivo')});
+    }, function (err) {
+        app.dialog.alert("Error al descargar el archivo");
+        console.log(err);
+    }
+    );
 }
 function writeFile(fileEntry, dataObj) {
     fileEntry.createWriter(function (fileWriter) {
@@ -321,11 +353,11 @@ function writeFile(fileEntry, dataObj) {
         fileWriter.onerror = function (e) {
             console.log("Failed file write: " + e.toString());
             app.dialog.close();
-            app.dialog.alert('Error al descargar el archivo')
+            app.dialog.alert("Error al descargar el archivo");
         };
 
+
         fileWriter.write(dataObj);
-        app.dialog.preloader("Descargando");
     });
 }
 async function getTransacciones() {
@@ -345,32 +377,28 @@ async function getTransacciones() {
                 doc = change.doc;
                 console.log(
                     "leyendo datos de:" +
-                        doc.data().usuarios[0] +
-                        " a " +
-                        doc.data().usuarios[1]
+                    doc.data().usuarios[0] +
+                    " a " +
+                    doc.data().usuarios[1]
                 );
                 var transaccionId = doc.id;
                 $$("#lista-notificaciones").prepend(
                     "<li><a id='" +
-                        transaccionId +
-                        "' class='panel-close' href='/transaccion/" +
-                        transaccionId +
-                        "'></li>"
+                    transaccionId +
+                    "' class='panel-close' href='/transaccion/" +
+                    transaccionId +
+                    "'></li>"
                 );
                 if (doc.data().usuarios[0] == userMail) {
                     var id = doc.data().usuarios[1];
-                    var ref = db.collection("USUARIOS").doc(id);
-                    var doc = await ref.get();
+                    var doc = await getUserData(id);
                     var contactName = doc.data().nombre;
                     $$("#" + transaccionId).text("De ti a " + contactName);
                 } else {
-                    var id = doc.data().usuarios[0];
-                    var ref = db.collection("USUARIOS").doc(id);
-                    var doc = await ref.get();
+                    var id = doc.data().usuarios[0]; 
+                    var doc = await getUserData(id);
                     var contactName = doc.data().nombre;
-                    $$("#" + transaccionId).text(
-                        "De " + contactName + " a ti"
-                    );
+                    $$("#" + transaccionId).text("De " + contactName + " a ti");
                 }
             });
         });
