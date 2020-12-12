@@ -53,7 +53,6 @@ var router = mainView.router;
 
 // Handle Cordova Device Ready Event
 $$(document).on("deviceready", function () {
-    getUsuario();
     /*if(usuarioEstaLogeado){
         router.navigate('/main/')
     }
@@ -69,16 +68,19 @@ $$(document).on("page:init", '.page[data-name="index"]', function () {
     $$("#btnLogin").on("click", async function () {
         var email = $$("#emailLogin").val();
         var password = $$("#passwordLogin").val();
+        app.dialog.preloader();
         var loged = await login(email,password);
         if(loged == 'loged'){
             console.log(loged)
+            app.dialog.close()
             router.navigate("/main/");
         }
         else{
-            var errorMessage = 'error';
+            app.dialog.close()
+            var errorMessage = loged;
             app.dialog.alert(errorMessage, "Error");
         }
-        
+
     });
 });
 
@@ -118,21 +120,31 @@ $$(document).on("page:init", '.page[data-name="main"]', function () {
 });
 
 $$(document).on("page:init", '.page[data-name="addContacto"]', function () {
+    var qrcode = new QRCode(document.getElementById("qrCode"))
+    qrcode.makeCode(userMail);
+    $$("#scanQR").on("click",function(){
+        cordova.plugins.barcodeScanner.scan(
+            function (result) {
+                addContacto(result.text);
+                /*alert("We got a barcode\n" +
+                    "Result: " + result.text + "\n" +
+                    "Format: " + result.format + "\n" +
+                    "Cancelled: " + result.cancelled);
+                    */
+            },
+            function (error) {
+                app.dialog.alert("Scanning failed: " + error);
+            }
+        );
+    })
     $$("#btnAddContacto").on("click", function () {
         var contactMail = $$("#contactMail").val();
         console.log(contactMail);
-        var doc = getUserData(contactMail)
+        addContacto(contactMail);
+        /*var doc = getUserData(contactMail)
         if (doc.exists) {
-            db.collection("USUARIOS")
-                .doc(contactMail)
-                .collection("CONTACTOS")
-                .doc(userMail)
-                .set({ nombre: userName });
-            db.collection("USUARIOS")
-                .doc(userMail)
-                .collection("CONTACTOS")
-                .doc(doc.id)
-                .set({ nombre: doc.data().nombre });
+            db.collection("USUARIOS") .doc(contactMail) .collection("CONTACTOS") .doc(userMail) .set({ nombre: userName });
+            db.collection("USUARIOS") .doc(userMail) .collection("CONTACTOS") .doc(doc.id) .set({ nombre: doc.data().nombre });
             app.dialog.alert(
                 "El usuario se ha agregado de forma correcta"
             );
@@ -140,6 +152,7 @@ $$(document).on("page:init", '.page[data-name="addContacto"]', function () {
         } else {
             app.dialog.alert("El usuario no existe");
         }
+        */
     });
 });
 $$(document).on("page:init", '.page[data-name="contacto"]', function () {
@@ -155,30 +168,32 @@ $$(document).on("page:init", '.page[data-name="contacto"]', function () {
         mostrarArchivos();
     });
     $$("#btnTransaccion").on("click", function () {
-        app.dialog.preloader("Subiendo archivos");
-        var archivos = document.getElementById("archivos").files;
-        db.collection("TRANSACCIONES")
-            .add({
-                usuarios: [userMail, contactId],
-                cantidad: archivos.length,
-                timeStamp: Date.now(),
-            })
-            .then(function (docRef) {
-                var storageRef = storage.ref(docRef.id);
-                var cantidadSubidos = 0;
-                files.forEach((archivo) => {
-                    var filerRef = storageRef.child(archivo.name);
-                    filerRef.put(archivo).then(function () {
-                        cantidadSubidos++;
-                        if (cantidadSubidos == archivos.length) {
-                            app.dialog.close();
-                            router.back();
-                        } else {
-                            console.log(cantidadSubidos);
-                        }
+        if(files.length > 0){
+            app.dialog.preloader("Subiendo archivos");
+            var archivos = document.getElementById("archivos").files;
+            db.collection("TRANSACCIONES")
+                .add({
+                    usuarios: [userMail, contactId],
+                    cantidad: archivos.length,
+                    timeStamp: Date.now(),
+                })
+                .then(function (docRef) {
+                    var storageRef = storage.ref(docRef.id);
+                    var cantidadSubidos = 0;
+                    files.forEach((archivo) => {
+                        var filerRef = storageRef.child(archivo.name);
+                        filerRef.put(archivo).then(function () {
+                            cantidadSubidos++;
+                            if (cantidadSubidos == archivos.length) {
+                                app.dialog.close();
+                                router.back();
+                            } else {
+                                console.log(cantidadSubidos);
+                            }
+                        });
                     });
                 });
-            });
+        }
     });
 });
 $$(document).on("page:init", '.page[data-name="transaccion"]', function () {
@@ -196,12 +211,12 @@ $$(document).on("page:init", '.page[data-name="transaccion"]', function () {
                 console.log(url);
                 $$("#fileList").append(
                     `<li><div class="item-content"><div class="item-inner"> <div class="item-title">` +
-                        itemRef.name +
-                        `</div> <a id="` +
-                        url +
-                        `" href="#" onclick="downloadFile('` +
-                        itemRef.name +
-                        `',this.id)" class="fileId f7-icons size-50">arrow_down_circle</a> </div> </div></li>`
+                    itemRef.name +
+                    `</div> <a id="` +
+                    url +
+                    `" href="#" onclick="downloadFile('` +
+                    itemRef.name +
+                    `',this.id)" class="fileId f7-icons size-50">arrow_down_circle</a> </div> </div></li>`
                 );
             });
         });
@@ -210,6 +225,7 @@ $$(document).on("page:init", '.page[data-name="transaccion"]', function () {
 //$$(document).on("page:init", '.page[data-name="about"]', function (e) {});
 function login(email,password){
     return new Promise((resolve)=>{
+        console.log(email,'  ',password)
         firebase
             .auth()
             .signInWithEmailAndPassword(email, password)
@@ -228,28 +244,26 @@ function login(email,password){
 }
 function logout(){
     firebase.auth().signOut();
-    localStorage.removeItem("userMail");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("usuarioEstaLogeado");
+    userMail = '';
+    userName = '';
 }
-function getUsuario() {
+/*function getUsuario() {
     userMail = localStorage.getItem("userMail");
     userName = localStorage.getItem("userName");
     usuarioEstaLogeado = localStorage.getItem("usuarioEstaLogeado");
-}
+}*/
 function setUsuario(mail,name) {
-    localStorage.setItem("userMail", mail);
-    localStorage.setItem("userName", name);
-    localStorage.setItem("usuarioEstaLogeado", true);
+    userMail = mail;
+    userName = name;
 }
 function getUserData(userid){
     return new Promise((resolve)=>{
-    db.collection("USUARIOS")
-        .doc(userid)
-        .get()
-        .then(function(doc){
-            resolve(doc);
-        })
+        db.collection("USUARIOS")
+            .doc(userid)
+            .get()
+            .then(function(doc){
+                resolve(doc);
+            })
     })
 }
 function crearUsuario(email, nombre) {
@@ -275,6 +289,20 @@ function getContactos() {
                 );
             });
         });
+}
+async function addContacto(contactMail){
+    console.log(contactMail);
+    var doc = await getUserData(contactMail)
+    if (doc.exists) {
+        db.collection("USUARIOS") .doc(contactMail) .collection("CONTACTOS") .doc(userMail) .set({ nombre: userName });
+        db.collection("USUARIOS") .doc(userMail) .collection("CONTACTOS") .doc(doc.id) .set({ nombre: doc.data().nombre });
+        app.dialog.alert(
+            "El usuario se ha agregado de forma correcta"
+        );
+        router.back();
+    } else {
+        app.dialog.alert("El usuario no existe");
+    }
 }
 function mostrarArchivos() {
     $$("#fileList").html('');
