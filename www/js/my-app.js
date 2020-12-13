@@ -20,9 +20,11 @@ var app = new Framework7({
     // App id
     id: "com.myapp.test",
     // Enable swipe panel
-    panel: {
+    /*panel: {
         swipe: "left",
-    }, // Add default routes
+    },
+    */
+    // Add default routes
     routes: [
         {
             path: "/main/",
@@ -113,6 +115,10 @@ $$(document).on("page:init", '.page[data-name="registro"]', function () {
 $$(document).on("page:init", '.page[data-name="main"]', function () {
     getContactos();
     getTransacciones();
+    $$('#btnNotificaciones').on('click',function(){
+        console.log('abierto')
+        $$('#badge').removeClass('badge')
+    })
     $$('#logout').on('click',function(){
         logout();
         router.back();
@@ -393,6 +399,7 @@ async function getTransacciones() {
         .where("usuarios", "array-contains", userMail)
         .limit(50)
         .onSnapshot(async function (querySnapshot) {
+            $$('#badge').addClass('badge')
             lastTimeStamp = Date.now();
             var docs = querySnapshot.docChanges();
             docs.sort(function (a, b) {
