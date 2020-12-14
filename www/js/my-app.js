@@ -328,19 +328,23 @@ function deleteFile(archivo){
     mostrarArchivos()
 }
 function downloadFile(name, url) {
-    app.dialog.preloader('Descargando archivo')
-    console.log(url);
-    var xhr = new XMLHttpRequest();
-    xhr.open("GET", url);
-    xhr.responseType = "blob";
-    xhr.onload = function () {
-        if (this.status == 200) {
-            var blob = xhr.response;
-            //blob tiene el contenido de la respuesta del servidor
-            saveFile(name, blob);
-        }
-    };
-    xhr.send();
+    if(device.platform != 'browser'){
+        app.dialog.preloader('Descargando archivo')
+        console.log(url);
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", url);
+        xhr.responseType = "blob";
+        xhr.onload = function () {
+            if (this.status == 200) {
+                var blob = xhr.response;
+                //blob tiene el contenido de la respuesta del servidor
+                saveFile(name, blob);
+            }
+        };
+        xhr.send();
+    } else {
+        window.open(url,'_system');
+    }
 }
 function saveFile(name, blob) {
     window.requestFileSystem( LocalFileSystem.PERSISTENT, 0, function (fs) {
@@ -381,6 +385,8 @@ function writeFile(fileEntry, dataObj) {
     fileEntry.createWriter(function (fileWriter) {
         fileWriter.onwriteend = function () {
             console.log("Successful file write...");
+            console.log('type '+dataObj.type)
+            cordova.plugins.fileOpener2.open(fileEntry.toURL(),dataObj.type);
             app.dialog.close();
         };
 
@@ -430,8 +436,7 @@ async function getTransacciones() {
                     var contactName = doc.data().nombre;
                     $$("#" + transaccionId).text("De ti a " + contactName);
                 } else {
-                    var id = doc.data().usuarios[0]; 
-                    var doc = await getUserData(id);
+                    var id = doc.data().usuarios[0]; var doc = await getUserData(id);
                     var contactName = doc.data().nombre;
                     $$("#" + transaccionId).text("De " + contactName + " a ti");
                 }
