@@ -1,5 +1,5 @@
 {
-  "name": "File Transfer",
+  "name": "FileTransfer",
   "private": false,
   "version": "1.0.0",
   "description": "Aplicacion para pasar archivos entre dispositivos",
@@ -77,6 +77,7 @@
     ]
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "cordova run browser"
   }
 }
