@@ -5,7 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "pre-build": "cordova platform add browser",
-    "build": "cordova run browser"
+    "build": "cordova run browser",
+    "heroku-prebuild": "cordova platform add browser",
+    "heroku-postbuild": "cordova run browser --port=80"
   },
   "description": "Aplicacion para pasar archivos entre dispositivos",
   "repository": {
