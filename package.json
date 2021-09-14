@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "cordova platform add browser",
-    "build": "http-server platform/browser/www/"
+    "build": "cordova platform add browser",
+    "start": "http-server platform/browser/www/"
   },
   "description": "Aplicacion para pasar archivos entre dispositivos",
   "repository": {
