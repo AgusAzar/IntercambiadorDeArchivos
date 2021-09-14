@@ -114,19 +114,18 @@ $$(document).on('page:init', '.page[data-name="addContacto"]', () => {
     var qrcode = new QRCode(document.getElementById('qrCode'));
     qrcode.makeCode(userMail);
     $$('#scanQR').on('click', () => {
-        cordova.plugins.barcodeScanner.scan(
-            (result) => {
-                addContacto(result.text);
-                /*alert("We got a barcode\n" +
-                    "Result: " + result.text + "\n" +
-                    "Format: " + result.format + "\n" +
-                    "Cancelled: " + result.cancelled);
-                    */
-            },
-            (error) => {
-                showError('Scanning failed: ' + error.message);
+        $$('html').hide();
+        QRScanner.scan((err, text) => {
+            if (err) {
+                $$('html').show();
+            } else {
+                $$('html').show();
+                addContacto(text);
             }
-        );
+        });
+        QRScanner.show((status) => {
+            console.log(status);
+        });
     });
     $$('#btnAddContacto').on('click', () => {
         var contactMail = $$('#contactMail').val();
@@ -215,14 +214,12 @@ function login(email, password) {
         .auth()
         .setPersistence(firebase.auth.Auth.Persistence.LOCAL)
         .then(() => {
-            return firebase
-                .auth()
-                .signInWithEmailAndPassword(email, password)
-                .then(async () => {
-                    console.log('login ok');
-                    var doc = await getUserData(email);
-                    setUsuario(email, doc.data().nombre);
-                });
+            return firebase.auth().signInWithEmailAndPassword(email, password);
+        })
+        .then(async () => {
+            console.log('login ok');
+            var doc = await getUserData(email);
+            setUsuario(email, doc.data().nombre);
         })
         .catch((error) => {
             showError(error.message);
@@ -331,15 +328,14 @@ function downloadFile(name, url) {
         app.dialog.preloader('Descargando archivo');
         console.log(url);
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', url);
         xhr.responseType = 'blob';
-        xhr.onload = () => {
-            if (this.status == 200) {
-                var blob = xhr.response;
-                //blob tiene el contenido de la respuesta del servidor
-                saveFile(name, blob);
-            }
+        xhr.onload = function (event) {
+            var blob = xhr.response;
+            console.log(name, blob);
+            //blob tiene el contenido de la respuesta del servidor
+            saveFile(name, blob);
         };
+        xhr.open('GET', url);
         xhr.send();
     } else {
         window.open(url, '_system');
