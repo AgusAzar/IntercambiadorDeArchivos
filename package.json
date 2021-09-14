@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "pre-build": "cordova run browser",
+    "pre-build": "cordova platform add browser",
     "build": "cordova run browser"
   },
   "description": "Aplicacion para pasar archivos entre dispositivos",
