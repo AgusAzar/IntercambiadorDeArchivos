@@ -45,12 +45,10 @@
     "framework7": "^5.4.2",
     "framework7-icons": "^3.0.0",
     "template7": "^1.4.2",
-    "http-server": "^0.12.3"
-
+    "cordova-browser": "^6.0.0"
   },
   "devDependencies": {
     "cordova-android": "^9.1.0",
-    "cordova-browser": "^6.0.0",
     "cordova-plugin-device": "^2.0.3",
     "cordova-plugin-file": "^6.0.2",
     "cordova-plugin-file-opener2": "^3.0.5",
